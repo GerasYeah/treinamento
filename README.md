@@ -23,6 +23,3 @@ Um simples sistema para representar movimentações de peças em um tabuleiro de
 Sistema que gera um tabuleiro de batalha naval
 
 [Batalha Naval](./desafios-em-c/batalhaNaval.c)
-
-## Exercícios de JavsScript
-Em breve
