@@ -55,6 +55,19 @@ def main():
         )
         return
 
+    # ==========================================================
+    # SALVA O ESTADO ORIGINAL DO DOCUMENTO
+    # ==========================================================
+
+    estado_original = doc.createInstance(
+        "com.sun.star.text.TextDocument"
+    )
+
+    # Copia o conteúdo do documento atual para o estado original
+    estado_original.Text.setString(
+        doc.Text.getString()
+    )
+
     # Processa cada carga
     for item in cargas:
 
@@ -64,31 +77,31 @@ def main():
         if "carga" not in item:
             continue
 
-        if "volumes" not in item:
+        if "cxs" not in item:
             continue
 
+        # Tudo como STRING
         box = str(item["box"])
         carga = str(item["carga"])
+        cxs = str(item["cxs"])
 
-        # Formata volumes com dois dígitos
-        volumes = str(item["volumes"]).zfill(2)
+        # Restaura o documento para o template original
+        doc.Text.setString(
+            estado_original.Text.getString()
+        )
 
         # Substitui os campos
         substituir(doc, "{BOX}", box)
         substituir(doc, "{CARGA}", carga)
-        substituir(doc, "{VOLUMES: XX}", "VOLUMES: " + volumes)
+        substituir(doc, "{CXS}", cxs)
 
         # Imprime
         imprimir(doc)
 
-        # Restaura o modelo
-        substituir(doc, box, "{BOX}")
-        substituir(doc, carga, "{CARGA}")
-        substituir(
-            doc,
-            "VOLUMES: " + volumes,
-            "{VOLUMES: XX}"
-        )
+    # Restaura o documento original ao terminar
+    doc.Text.setString(
+        estado_original.Text.getString()
+    )
 
     mostrar_mensagem(
         "Impressão concluída.\n\n"
@@ -190,12 +203,6 @@ def mostrar_mensagem(texto):
         except Exception:
             pass
 
-    box = smgr.createInstanceWithContext(
-        "com.sun.star.awt.MessageBox",
-        ctx
-    )
-
-    # Método alternativo usando toolkit
     toolkit = smgr.createInstanceWithContext(
         "com.sun.star.awt.Toolkit",
         ctx
