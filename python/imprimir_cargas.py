@@ -40,23 +40,15 @@ def main():
         )
         return
 
-    # O JSON agora deve ser diretamente uma lista
+    # O JSON deve ser diretamente uma lista
     if not isinstance(dados, list):
         mostrar_mensagem(
             "O JSON precisa ser uma lista."
         )
         return
 
-    cargas = dados
-
-    # ==========================================================
-    # SALVA O ESTADO ORIGINAL DO DOCUMENTO
-    # ==========================================================
-
-    estado_original = doc.Text.getString()
-
-    # Processa cada carga
-    for item in cargas:
+    # Processa cada item
+    for item in dados:
 
         if "box" not in item:
             continue
@@ -67,15 +59,12 @@ def main():
         if "cxs" not in item:
             continue
 
-        # Tudo como STRING
+        # Converte tudo para string
         box = str(item["box"])
         carga = str(item["carga"])
         cxs = str(item["cxs"])
 
-        # Restaura o documento para o template original
-        doc.Text.setString(estado_original)
-
-        # Substitui os campos
+        # Substitui os placeholders
         substituir(doc, "{BOX}", box)
         substituir(doc, "{CARGA}", carga)
         substituir(doc, "{CXS}", cxs)
@@ -83,12 +72,14 @@ def main():
         # Imprime
         imprimir(doc)
 
-    # Restaura o documento original ao terminar
-    doc.Text.setString(estado_original)
+        # Volta os placeholders para o próximo item
+        substituir(doc, box, "{BOX}")
+        substituir(doc, carga, "{CARGA}")
+        substituir(doc, cxs, "{CXS}")
 
     mostrar_mensagem(
         "Impressão concluída.\n\n"
-        "Total de itens: " + str(len(cargas))
+        "Total de itens: " + str(len(dados))
     )
 
 
