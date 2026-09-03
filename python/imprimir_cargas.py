@@ -3,34 +3,31 @@ import json
 
 
 def main():
-    """
-    Macro principal.
-    Solicita ao usuário o arquivo JSON e inicia a impressão.
-    """
-
-    # Documento atualmente aberto
+    # Obtém o contexto atual do LibreOffice
     ctx = uno.getComponentContext()
     smgr = ctx.ServiceManager
 
+    # Obtém o Desktop do LibreOffice
     desktop = smgr.createInstanceWithContext(
         "com.sun.star.frame.Desktop",
         ctx
     )
 
+    # Documento Writer atualmente aberto
     doc = desktop.getCurrentComponent()
 
     if not doc:
         mostrar_mensagem("Nenhum documento está aberto.")
         return
 
-    # Solicita o arquivo JSON
+    # Abre o seletor para escolher o arquivo JSON
     json_path = selecionar_arquivo(ctx)
 
     if not json_path:
         return
 
+    # Carrega o JSON
     try:
-        # Lê o JSON
         with open(json_path, "r", encoding="utf-8") as arquivo:
             dados = json.load(arquivo)
 
@@ -40,16 +37,30 @@ def main():
         )
         return
 
-    # O JSON deve ser diretamente uma lista
+    # O JSON precisa ser uma lista
     if not isinstance(dados, list):
         mostrar_mensagem(
             "O JSON precisa ser uma lista."
         )
         return
 
-    # Processa cada item
+    # Prefixos usados no documento.
+    # Guardamos em variáveis para não repetir os textos.
+    prefixo_box = "BOX: "
+    prefixo_volumes = "VOLUMES: "
+
+    # Essas variáveis guardarão exatamente o que foi
+    # inserido na última substituição.
+    box_anterior = None
+    carga_anterior = None
+    cxs_anterior = None
+
+    # Indica se estamos processando o primeiro item
+    primeira_carga = True
+
     for item in dados:
 
+        # Ignora itens que não possuem os campos necessários
         if "box" not in item:
             continue
 
@@ -59,23 +70,90 @@ def main():
         if "cxs" not in item:
             continue
 
-        # Converte tudo para string
+        # Tudo é convertido para string para preservar
+        # valores como "01", "05", etc.
         box = str(item["box"])
         carga = str(item["carga"])
         cxs = str(item["cxs"])
 
-        # Substitui os placeholders
-        substituir(doc, "{BOX}", box)
-        substituir(doc, "{CARGA}", carga)
-        substituir(doc, "{CXS}", cxs)
+        # Montamos os textos completos que serão inseridos.
+        # Exemplo:
+        # "BOX: " + "01" = "BOX: 01"
+        # "VOLUMES: " + "05" = "VOLUMES: 05"
+        box_atual = prefixo_box + box
+        cxs_atual = prefixo_volumes + cxs
 
-        # Imprime
+        if primeira_carga:
+
+            # Na primeira carga ainda existem os placeholders.
+            #
+            # Procuramos o texto completo "BOX: {XX}"
+            # e não apenas "{XX}".
+            substituir(
+                doc,
+                prefixo_box + "{XX}",
+                box_atual
+            )
+
+            # A carga continua usando seu placeholder normal.
+            substituir(
+                doc,
+                "{CARGA}",
+                carga
+            )
+
+            # Da mesma forma, procuramos "VOLUMES: {XX}"
+            # e não apenas "{XX}".
+            substituir(
+                doc,
+                prefixo_volumes + "{XX}",
+                cxs_atual
+            )
+
+            # A partir daqui, já não é mais a primeira carga.
+            primeira_carga = False
+
+        else:
+
+            # Nas próximas cargas, substituímos exatamente
+            # o texto que foi inserido anteriormente.
+            #
+            # Exemplo:
+            # "BOX: 01" -> "BOX: 02"
+            substituir(
+                doc,
+                box_anterior,
+                box_atual
+            )
+
+            # A carga é substituída pelo valor anterior completo.
+            #
+            # Exemplo:
+            # "1234567" -> "1234568"
+            substituir(
+                doc,
+                carga_anterior,
+                carga
+            )
+
+            # Para volumes, usamos o texto completo.
+            #
+            # Exemplo:
+            # "VOLUMES: 05" -> "VOLUMES: 01"
+            substituir(
+                doc,
+                cxs_anterior,
+                cxs_atual
+            )
+
+        # Imprime o documento com os valores atuais
         imprimir(doc)
 
-        # Volta os placeholders para o próximo item
-        substituir(doc, box, "{BOX}")
-        substituir(doc, carga, "{CARGA}")
-        substituir(doc, cxs, "{CXS}")
+        # Guardamos os valores que acabamos de inserir.
+        # Eles serão usados como alvo na próxima substituição.
+        box_anterior = box_atual
+        carga_anterior = carga
+        cxs_anterior = cxs_atual
 
     mostrar_mensagem(
         "Impressão concluída.\n\n"
@@ -84,13 +162,9 @@ def main():
 
 
 def selecionar_arquivo(ctx):
-    """
-    Abre o seletor de arquivos do LibreOffice
-    e retorna o caminho do JSON selecionado.
-    """
-
     smgr = ctx.ServiceManager
 
+    # Cria o seletor de arquivos do LibreOffice
     file_picker = smgr.createInstanceWithContext(
         "com.sun.star.ui.dialogs.FilePicker",
         ctx
@@ -98,6 +172,7 @@ def selecionar_arquivo(ctx):
 
     file_picker.setTitle("Selecione o arquivo JSON")
 
+    # Mostra somente arquivos JSON
     file_picker.appendFilter(
         "Arquivos JSON",
         "*.json"
@@ -107,6 +182,7 @@ def selecionar_arquivo(ctx):
 
     resultado = file_picker.execute()
 
+    # 1 = usuário confirmou a seleção
     if resultado != 1:
         return None
 
@@ -115,29 +191,25 @@ def selecionar_arquivo(ctx):
     if not arquivos:
         return None
 
+    # Converte a URL do LibreOffice para um caminho
+    # normal do Windows.
     return uno.fileUrlToSystemPath(arquivos[0])
 
 
 def substituir(doc, procurar, substituir_por):
-    """
-    Substitui todas as ocorrências de um texto
-    no documento atual.
-    """
-
+    # Cria um descritor de substituição do Writer
     descriptor = doc.createReplaceDescriptor()
 
     descriptor.SearchString = procurar
     descriptor.ReplaceString = substituir_por
 
+    # Faz a substituição mantendo a formatação do documento.
     doc.replaceAll(descriptor)
 
 
 def imprimir(doc):
-    """
-    Imprime o documento sem abrir a caixa
-    de diálogo de impressão.
-    """
-
+    # Mantemos a configuração de impressão automática
+    # que já estava funcionando corretamente.
     propriedades = []
 
     prop = uno.createUnoStruct(
@@ -153,10 +225,6 @@ def imprimir(doc):
 
 
 def mostrar_mensagem(texto):
-    """
-    Mostra uma mensagem para o usuário.
-    """
-
     ctx = uno.getComponentContext()
     smgr = ctx.ServiceManager
 
