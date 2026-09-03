@@ -40,33 +40,20 @@ def main():
         )
         return
 
-    # Verifica se existe o array cargas
-    if "cargas" not in dados:
+    # O JSON agora deve ser diretamente uma lista
+    if not isinstance(dados, list):
         mostrar_mensagem(
-            'O JSON não possui o array "cargas".'
+            "O JSON precisa ser uma lista."
         )
         return
 
-    cargas = dados["cargas"]
-
-    if not isinstance(cargas, list):
-        mostrar_mensagem(
-            'O campo "cargas" precisa ser um array.'
-        )
-        return
+    cargas = dados
 
     # ==========================================================
     # SALVA O ESTADO ORIGINAL DO DOCUMENTO
     # ==========================================================
 
-    estado_original = doc.createInstance(
-        "com.sun.star.text.TextDocument"
-    )
-
-    # Copia o conteúdo do documento atual para o estado original
-    estado_original.Text.setString(
-        doc.Text.getString()
-    )
+    estado_original = doc.Text.getString()
 
     # Processa cada carga
     for item in cargas:
@@ -86,9 +73,7 @@ def main():
         cxs = str(item["cxs"])
 
         # Restaura o documento para o template original
-        doc.Text.setString(
-            estado_original.Text.getString()
-        )
+        doc.Text.setString(estado_original)
 
         # Substitui os campos
         substituir(doc, "{BOX}", box)
@@ -99,13 +84,11 @@ def main():
         imprimir(doc)
 
     # Restaura o documento original ao terminar
-    doc.Text.setString(
-        estado_original.Text.getString()
-    )
+    doc.Text.setString(estado_original)
 
     mostrar_mensagem(
         "Impressão concluída.\n\n"
-        "Total de cargas: " + str(len(cargas))
+        "Total de itens: " + str(len(cargas))
     )
 
 
@@ -124,7 +107,6 @@ def selecionar_arquivo(ctx):
 
     file_picker.setTitle("Selecione o arquivo JSON")
 
-    # Filtro JSON
     file_picker.appendFilter(
         "Arquivos JSON",
         "*.json"
@@ -142,7 +124,6 @@ def selecionar_arquivo(ctx):
     if not arquivos:
         return None
 
-    # Retorna URL convertida para caminho do Windows
     return uno.fileUrlToSystemPath(arquivos[0])
 
 
