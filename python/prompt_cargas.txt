@@ -1,0 +1,30 @@
+Analise a imagem e extraia exclusivamente os dados da lista de cargas.
+
+Retorne SOMENTE um JSON válido, sem Markdown, sem explicações e sem texto adicional.
+
+O formato obrigatório é:
+
+[ { "box": "string", "carga": "string", "cxs": "" },
+{ "box": "string", "carga": "string", "cxs": "" },
+{ "box": "string", "carga": "string", "cxs": "" } ]
+
+Regras:
+
+- Cada carga encontrada na imagem deve gerar um objeto.
+- Cada objeto JSON deve ocupar uma única linha.
+- Não quebre um objeto em várias linhas.
+- "carga" corresponde ao número da carga.
+- "box" corresponde ao dígito que aparece sozinho imediatamente após a carga.
+- O BOX é sempre um dígito isolado após o número da carga.
+- "cxs" deve ser SEMPRE uma string vazia: "".
+- O campo "cxs" não precisa ser procurado na imagem, pois essa informação não aparece nela.
+- Preserve exatamente os valores encontrados na imagem.
+- Preserve zeros à esquerda quando existirem.
+- Todos os valores de "box" e "carga" devem ser retornados como strings.
+- Não faça cálculos ou correções nos valores.
+- Não altere, complete ou invente informações.
+- Se a carga ou o BOX estiver ilegível, use "" nesse campo.
+- Mantenha a ordem das cargas conforme aparecem na imagem.
+- Não inclua informações que não façam parte da lista de cargas.
+- Antes de responder, confira cada linha para evitar associar uma carga ao BOX errado.
+- A resposta final deve ser exclusivamente o array JSON.
