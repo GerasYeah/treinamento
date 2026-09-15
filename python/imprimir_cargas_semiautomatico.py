@@ -1,8 +1,12 @@
 import uno
+import unohelper
 import re
 
+from com.sun.star.awt import XActionListener
+from com.sun.star.awt import XKeyListener
 
-# Valor usado na primeira execução e pelo botão Restaurar
+
+# Valor inicial do campo e também usado pelo botão Restaurar
 VALOR_INICIAL = "02 125XXXX XX"
 
 
@@ -10,13 +14,11 @@ def main():
     ctx = uno.getComponentContext()
     smgr = ctx.ServiceManager
 
-    # Obtém o Desktop do LibreOffice
     desktop = smgr.createInstanceWithContext(
         "com.sun.star.frame.Desktop",
         ctx
     )
 
-    # Obtém o documento Writer atualmente aberto
     doc = desktop.getCurrentComponent()
 
     if not doc:
@@ -30,6 +32,7 @@ def main():
 
 
 def criar_dialogo(ctx, doc):
+
     smgr = ctx.ServiceManager
 
     # Modelo do diálogo
@@ -43,7 +46,7 @@ def criar_dialogo(ctx, doc):
     dialog_model.Title = "Impressão de cargas semiautomático"
 
 
-    # Texto de cabeçalho
+    # Cabeçalho
     titulo = dialog_model.createInstance(
         "com.sun.star.awt.UnoControlFixedTextModel"
     )
@@ -70,7 +73,6 @@ def criar_dialogo(ctx, doc):
     campo.Width = 200
     campo.Height = 14
 
-    # Valor inicial
     campo.Text = VALOR_INICIAL
 
     dialog_model.insertByName(
@@ -90,6 +92,7 @@ def criar_dialogo(ctx, doc):
     botao_imprimir.Height = 18
 
     botao_imprimir.Label = "Imprimir"
+    botao_imprimir.DefaultButton = True
 
     dialog_model.insertByName(
         "imprimir",
@@ -157,51 +160,56 @@ def criar_dialogo(ctx, doc):
     }
 
 
-    # Listener do botão Imprimir
+    # Mantemos os listeners em variáveis para que
+    # eles continuem existindo enquanto o diálogo estiver aberto.
+    listener_imprimir = BotaoListener(
+        lambda event: processar_impressao(
+            ctx,
+            doc,
+            campo_controle,
+            estado
+        )
+    )
+
+    listener_restaurar = BotaoListener(
+        lambda event: restaurar(
+            campo_controle
+        )
+    )
+
+    listener_fechar = BotaoListener(
+        lambda event: dialog.endExecute()
+    )
+
+    listener_teclado = TecladoListener(
+        lambda event: processar_impressao(
+            ctx,
+            doc,
+            campo_controle,
+            estado
+        )
+    )
+
+
+    # Registra os listeners
     imprimir_controle.addActionListener(
-        ActionListener(
-            lambda event: processar_impressao(
-                ctx,
-                doc,
-                campo_controle,
-                estado
-            )
-        )
+        listener_imprimir
     )
 
-
-    # Listener do botão Restaurar
     restaurar_controle.addActionListener(
-        ActionListener(
-            lambda event: restaurar(
-                campo_controle
-            )
-        )
+        listener_restaurar
     )
 
-
-    # Listener do botão Fechar
     fechar_controle.addActionListener(
-        ActionListener(
-            lambda event: dialog.endExecute()
-        )
+        listener_fechar
     )
 
-
-    # Listener do Enter
     campo_controle.addKeyListener(
-        KeyListener(
-            lambda event: processar_impressao(
-                ctx,
-                doc,
-                campo_controle,
-                estado
-            )
-        )
+        listener_teclado
     )
 
 
-    # Mostra o diálogo
+    # Exibe o diálogo
     dialog.setVisible(True)
 
     campo_controle.setFocus()
@@ -214,10 +222,10 @@ def processar_impressao(
     estado
 ):
 
-    texto = campo.getText()
+    texto = campo.getText().strip()
 
-    # Divide o texto pelos espaços
-    partes = texto.strip().split()
+    # Divide os três valores pelos espaços
+    partes = texto.split()
 
     if len(partes) != 3:
         mostrar_mensagem(
@@ -248,7 +256,7 @@ def processar_impressao(
         return
 
 
-    # CARGA precisa ter exatamente 7 dígitos
+    # Carga precisa ter exatamente 7 dígitos
     if not re.fullmatch(r"\d{7}", carga):
 
         mostrar_mensagem(
@@ -261,7 +269,7 @@ def processar_impressao(
         return
 
 
-    # VOLUMES precisa ter exatamente 2 dígitos
+    # Volumes precisa ter exatamente 2 dígitos
     if not re.fullmatch(r"\d{2}", volumes):
 
         mostrar_mensagem(
@@ -274,13 +282,18 @@ def processar_impressao(
         return
 
 
-    # Monta os textos completos usados no documento
+    # Textos completos usados na substituição
     box_texto = "BOX: " + box
     volumes_texto = "VOLUMES: " + volumes
 
 
-    # Primeira impressão
     if estado["box_anterior"] is None:
+
+        # Primeira impressão:
+        #
+        # BOX: {XX}
+        # {CARGA}
+        # VOLUMES: {XX}
 
         substituir(
             doc,
@@ -302,10 +315,13 @@ def processar_impressao(
 
     else:
 
-        # Próximas impressões.
+        # Próximas impressões:
         #
-        # Substituímos os textos completos anteriores,
-        # evitando substituir números isoladamente.
+        # BOX: 02 -> BOX: 03
+        # 1254567 -> 1254568
+        # VOLUMES: 10 -> VOLUMES: 05
+        #
+        # Nunca procuramos apenas "02", "10", etc.
 
         substituir(
             doc,
@@ -330,16 +346,16 @@ def processar_impressao(
     imprimir(doc)
 
 
-    # Guarda os valores usados nesta impressão
+    # Guarda os valores completos que acabaram
+    # de ser inseridos.
     estado["box_anterior"] = box_texto
     estado["carga_anterior"] = carga
     estado["volumes_anterior"] = volumes_texto
 
 
-    # Mantém somente os 3 primeiros dígitos da carga
-    # e substitui os 4 últimos por X.
+    # Mantém os três primeiros dígitos da carga
+    # e apaga os quatro últimos.
     #
-    # Exemplo:
     # 1254567 -> 125XXXX
     carga_proxima = carga[:3] + "XXXX"
 
@@ -359,24 +375,27 @@ def processar_impressao(
 
 
 def restaurar(campo):
-    # Volta para o valor inicial
+
+    # Restaura somente o conteúdo da caixa de texto
     campo.setText(VALOR_INICIAL)
     campo.setFocus()
 
 
 def substituir(doc, procurar, substituir_por):
-    # Cria o descritor de substituição
+
     descriptor = doc.createReplaceDescriptor()
 
     descriptor.SearchString = procurar
     descriptor.ReplaceString = substituir_por
 
-    # Substitui preservando a formatação do documento
+    # Mantém a formatação existente do documento
     doc.replaceAll(descriptor)
 
 
 def imprimir(doc):
-    # Configuração da impressão automática
+
+    # Mantemos exatamente a configuração
+    # de impressão automática.
     propriedades = []
 
     prop = uno.createUnoStruct(
@@ -391,10 +410,10 @@ def imprimir(doc):
     doc.print(tuple(propriedades))
 
 
-class ActionListener:
-    """
-    Listener utilizado pelos botões do diálogo.
-    """
+class BotaoListener(
+    unohelper.Base,
+    XActionListener
+):
 
     def __init__(self, callback):
         self.callback = callback
@@ -406,18 +425,17 @@ class ActionListener:
         pass
 
 
-class KeyListener:
-    """
-    Listener utilizado para detectar o Enter
-    dentro da caixa de texto.
-    """
+class TecladoListener(
+    unohelper.Base,
+    XKeyListener
+):
 
     def __init__(self, callback):
         self.callback = callback
 
     def keyPressed(self, event):
 
-        # 1280 = Enter
+        # Enter
         if event.KeyCode == 1280:
             self.callback(event)
 
@@ -429,6 +447,7 @@ class KeyListener:
 
 
 def mostrar_mensagem(ctx, texto):
+
     smgr = ctx.ServiceManager
 
     desktop = smgr.createInstanceWithContext(
