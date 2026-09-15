@@ -6,11 +6,11 @@ from com.sun.star.awt import XActionListener
 from com.sun.star.awt import XKeyListener
 
 
-# Valor inicial do campo e também usado pelo botão Restaurar
 VALOR_INICIAL = "02 125XXXX XX"
 
 
 def main():
+
     ctx = uno.getComponentContext()
     smgr = ctx.ServiceManager
 
@@ -28,26 +28,33 @@ def main():
         )
         return
 
-    criar_dialogo(ctx, doc)
+    abrir_dialogo(ctx, doc)
 
 
-def criar_dialogo(ctx, doc):
+def abrir_dialogo(ctx, doc):
 
     smgr = ctx.ServiceManager
 
-    # Modelo do diálogo
-    dialog_model = smgr.createInstanceWithContext(
+    # -------------------------------------------------
+    # MODELO DO DIÁLOGO
+    # -------------------------------------------------
+
+    modelo = smgr.createInstanceWithContext(
         "com.sun.star.awt.UnoControlDialogModel",
         ctx
     )
 
-    dialog_model.Width = 220
-    dialog_model.Height = 120
-    dialog_model.Title = "Impressão de cargas semiautomático"
+    modelo.Width = 220
+    modelo.Height = 85
+
+    modelo.Title = "Impressão de cargas semiautomático"
 
 
-    # Cabeçalho
-    titulo = dialog_model.createInstance(
+    # -------------------------------------------------
+    # CABEÇALHO
+    # -------------------------------------------------
+
+    titulo = modelo.createInstance(
         "com.sun.star.awt.UnoControlFixedTextModel"
     )
 
@@ -55,104 +62,125 @@ def criar_dialogo(ctx, doc):
     titulo.PositionY = 8
     titulo.Width = 200
     titulo.Height = 12
+
     titulo.Label = "box carga volumes"
 
-    dialog_model.insertByName(
+    modelo.insertByName(
         "titulo",
         titulo
     )
 
 
-    # Caixa de texto
-    campo = dialog_model.createInstance(
+    # -------------------------------------------------
+    # CAMPO
+    # -------------------------------------------------
+
+    campo_modelo = modelo.createInstance(
         "com.sun.star.awt.UnoControlEditModel"
     )
 
-    campo.PositionX = 10
-    campo.PositionY = 25
-    campo.Width = 200
-    campo.Height = 14
+    campo_modelo.PositionX = 10
+    campo_modelo.PositionY = 24
+    campo_modelo.Width = 200
+    campo_modelo.Height = 14
 
-    campo.Text = VALOR_INICIAL
+    campo_modelo.Text = VALOR_INICIAL
 
-    dialog_model.insertByName(
+    modelo.insertByName(
         "campo",
-        campo
+        campo_modelo
     )
 
 
-    # Botão Imprimir
-    botao_imprimir = dialog_model.createInstance(
+    # -------------------------------------------------
+    # BOTÃO IMPRIMIR
+    # -------------------------------------------------
+
+    imprimir_modelo = modelo.createInstance(
         "com.sun.star.awt.UnoControlButtonModel"
     )
 
-    botao_imprimir.PositionX = 10
-    botao_imprimir.PositionY = 50
-    botao_imprimir.Width = 60
-    botao_imprimir.Height = 18
+    imprimir_modelo.PositionX = 10
+    imprimir_modelo.PositionY = 48
+    imprimir_modelo.Width = 60
+    imprimir_modelo.Height = 18
 
-    botao_imprimir.Label = "Imprimir"
-    botao_imprimir.DefaultButton = True
+    imprimir_modelo.Label = "Imprimir"
 
-    dialog_model.insertByName(
+    modelo.insertByName(
         "imprimir",
-        botao_imprimir
+        imprimir_modelo
     )
 
 
-    # Botão Restaurar
-    botao_restaurar = dialog_model.createInstance(
+    # -------------------------------------------------
+    # BOTÃO RESTAURAR
+    # -------------------------------------------------
+
+    restaurar_modelo = modelo.createInstance(
         "com.sun.star.awt.UnoControlButtonModel"
     )
 
-    botao_restaurar.PositionX = 80
-    botao_restaurar.PositionY = 50
-    botao_restaurar.Width = 60
-    botao_restaurar.Height = 18
+    restaurar_modelo.PositionX = 80
+    restaurar_modelo.PositionY = 48
+    restaurar_modelo.Width = 60
+    restaurar_modelo.Height = 18
 
-    botao_restaurar.Label = "Restaurar"
+    restaurar_modelo.Label = "Restaurar"
 
-    dialog_model.insertByName(
+    modelo.insertByName(
         "restaurar",
-        botao_restaurar
+        restaurar_modelo
     )
 
 
-    # Botão Fechar
-    botao_fechar = dialog_model.createInstance(
+    # -------------------------------------------------
+    # BOTÃO FECHAR
+    # -------------------------------------------------
+
+    fechar_modelo = modelo.createInstance(
         "com.sun.star.awt.UnoControlButtonModel"
     )
 
-    botao_fechar.PositionX = 150
-    botao_fechar.PositionY = 50
-    botao_fechar.Width = 60
-    botao_fechar.Height = 18
+    fechar_modelo.PositionX = 150
+    fechar_modelo.PositionY = 48
+    fechar_modelo.Width = 60
+    fechar_modelo.Height = 18
 
-    botao_fechar.Label = "Fechar"
+    fechar_modelo.Label = "Fechar"
 
-    dialog_model.insertByName(
+    modelo.insertByName(
         "fechar",
-        botao_fechar
+        fechar_modelo
     )
 
 
-    # Cria o diálogo
-    dialog = smgr.createInstanceWithContext(
+    # -------------------------------------------------
+    # CONTROLE DO DIÁLOGO
+    # -------------------------------------------------
+
+    dialogo = smgr.createInstanceWithContext(
         "com.sun.star.awt.UnoControlDialog",
         ctx
     )
 
-    dialog.setModel(dialog_model)
+    dialogo.setModel(modelo)
 
 
-    # Obtém os controles
-    campo_controle = dialog.getControl("campo")
-    imprimir_controle = dialog.getControl("imprimir")
-    restaurar_controle = dialog.getControl("restaurar")
-    fechar_controle = dialog.getControl("fechar")
+    # -------------------------------------------------
+    # CONTROLES
+    # -------------------------------------------------
+
+    campo = dialogo.getControl("campo")
+    botao_imprimir = dialogo.getControl("imprimir")
+    botao_restaurar = dialogo.getControl("restaurar")
+    botao_fechar = dialogo.getControl("fechar")
 
 
-    # Guarda os valores usados na última impressão
+    # -------------------------------------------------
+    # ESTADO
+    # -------------------------------------------------
+
     estado = {
         "box_anterior": None,
         "carga_anterior": None,
@@ -160,60 +188,94 @@ def criar_dialogo(ctx, doc):
     }
 
 
-    # Mantemos os listeners em variáveis para que
-    # eles continuem existindo enquanto o diálogo estiver aberto.
-    listener_imprimir = BotaoListener(
-        lambda event: processar_impressao(
+    # -------------------------------------------------
+    # CALLBACKS
+    # -------------------------------------------------
+
+    def executar_impressao():
+
+        processar_impressao(
             ctx,
             doc,
-            campo_controle,
+            campo,
             estado
         )
-    )
 
-    listener_restaurar = BotaoListener(
-        lambda event: restaurar(
-            campo_controle
+
+    def executar_restauracao():
+
+        campo.setText(
+            VALOR_INICIAL
         )
+
+        campo.setFocus()
+
+
+    def executar_fechamento():
+
+        dialogo.endExecute()
+
+
+    # -------------------------------------------------
+    # LISTENERS
+    # -------------------------------------------------
+
+    listener_imprimir = ActionListener(
+        executar_impressao
     )
 
-    listener_fechar = BotaoListener(
-        lambda event: dialog.endExecute()
+    listener_restaurar = ActionListener(
+        executar_restauracao
     )
 
-    listener_teclado = TecladoListener(
-        lambda event: processar_impressao(
-            ctx,
-            doc,
-            campo_controle,
-            estado
-        )
+    listener_fechar = ActionListener(
+        executar_fechamento
+    )
+
+    listener_teclado = KeyListener(
+        executar_impressao
     )
 
 
-    # Registra os listeners
-    imprimir_controle.addActionListener(
+    # -------------------------------------------------
+    # REGISTRA LISTENERS
+    # -------------------------------------------------
+
+    botao_imprimir.addActionListener(
         listener_imprimir
     )
 
-    restaurar_controle.addActionListener(
+    botao_restaurar.addActionListener(
         listener_restaurar
     )
 
-    fechar_controle.addActionListener(
+    botao_fechar.addActionListener(
         listener_fechar
     )
 
-    campo_controle.addKeyListener(
+    campo.addKeyListener(
         listener_teclado
     )
 
 
-    # Exibe o diálogo
-    dialog.setVisible(True)
+    # -------------------------------------------------
+    # EXECUTA O DIÁLOGO
+    # -------------------------------------------------
 
-    campo_controle.setFocus()
+    try:
 
+        campo.setFocus()
+
+        dialogo.execute()
+
+    finally:
+
+        dialogo.dispose()
+
+
+# =====================================================
+# IMPRESSÃO
+# =====================================================
 
 def processar_impressao(
     ctx,
@@ -224,10 +286,15 @@ def processar_impressao(
 
     texto = campo.getText().strip()
 
-    # Divide os três valores pelos espaços
     partes = texto.split()
 
+
+    # -------------------------------------------------
+    # FORMATO
+    # -------------------------------------------------
+
     if len(partes) != 3:
+
         mostrar_mensagem(
             ctx,
             "Digite no formato:\n\n"
@@ -235,6 +302,7 @@ def processar_impressao(
         )
 
         campo.setFocus()
+
         return
 
 
@@ -243,8 +311,14 @@ def processar_impressao(
     volumes = partes[2]
 
 
-    # BOX precisa ter exatamente 2 dígitos
-    if not re.fullmatch(r"\d{2}", box):
+    # -------------------------------------------------
+    # VALIDA BOX
+    # -------------------------------------------------
+
+    if not re.fullmatch(
+        r"\d{2}",
+        box
+    ):
 
         mostrar_mensagem(
             ctx,
@@ -253,11 +327,18 @@ def processar_impressao(
         )
 
         campo.setFocus()
+
         return
 
 
-    # Carga precisa ter exatamente 7 dígitos
-    if not re.fullmatch(r"\d{7}", carga):
+    # -------------------------------------------------
+    # VALIDA CARGA
+    # -------------------------------------------------
+
+    if not re.fullmatch(
+        r"\d{7}",
+        carga
+    ):
 
         mostrar_mensagem(
             ctx,
@@ -266,11 +347,18 @@ def processar_impressao(
         )
 
         campo.setFocus()
+
         return
 
 
-    # Volumes precisa ter exatamente 2 dígitos
-    if not re.fullmatch(r"\d{2}", volumes):
+    # -------------------------------------------------
+    # VALIDA VOLUMES
+    # -------------------------------------------------
+
+    if not re.fullmatch(
+        r"\d{2}",
+        volumes
+    ):
 
         mostrar_mensagem(
             ctx,
@@ -279,21 +367,19 @@ def processar_impressao(
         )
 
         campo.setFocus()
+
         return
 
 
-    # Textos completos usados na substituição
     box_texto = "BOX: " + box
     volumes_texto = "VOLUMES: " + volumes
 
 
-    if estado["box_anterior"] is None:
+    # -------------------------------------------------
+    # PRIMEIRA IMPRESSÃO
+    # -------------------------------------------------
 
-        # Primeira impressão:
-        #
-        # BOX: {XX}
-        # {CARGA}
-        # VOLUMES: {XX}
+    if estado["box_anterior"] is None:
 
         substituir(
             doc,
@@ -313,15 +399,12 @@ def processar_impressao(
             volumes_texto
         )
 
-    else:
 
-        # Próximas impressões:
-        #
-        # BOX: 02 -> BOX: 03
-        # 1254567 -> 1254568
-        # VOLUMES: 10 -> VOLUMES: 05
-        #
-        # Nunca procuramos apenas "02", "10", etc.
+    # -------------------------------------------------
+    # IMPRESSÕES SEGUINTES
+    # -------------------------------------------------
+
+    else:
 
         substituir(
             doc,
@@ -342,60 +425,65 @@ def processar_impressao(
         )
 
 
-    # Imprime automaticamente
+    # -------------------------------------------------
+    # IMPRIME
+    # -------------------------------------------------
+
     imprimir(doc)
 
 
-    # Guarda os valores completos que acabaram
-    # de ser inseridos.
+    # -------------------------------------------------
+    # GUARDA OS VALORES ATUAIS
+    # -------------------------------------------------
+
     estado["box_anterior"] = box_texto
     estado["carga_anterior"] = carga
     estado["volumes_anterior"] = volumes_texto
 
 
-    # Mantém os três primeiros dígitos da carga
-    # e apaga os quatro últimos.
-    #
-    # 1254567 -> 125XXXX
-    carga_proxima = carga[:3] + "XXXX"
+    # -------------------------------------------------
+    # PREPARA PRÓXIMA ENTRADA
+    # -------------------------------------------------
 
+    carga_proxima = (
+        carga[:3] +
+        "XXXX"
+    )
 
-    # Volumes volta para XX
-    volumes_proximo = "XX"
-
-
-    # Prepara a próxima entrada
     campo.setText(
-        box + " " +
-        carga_proxima + " " +
-        volumes_proximo
+        box +
+        " " +
+        carga_proxima +
+        " XX"
     )
 
     campo.setFocus()
 
 
-def restaurar(campo):
+# =====================================================
+# SUBSTITUIÇÃO
+# =====================================================
 
-    # Restaura somente o conteúdo da caixa de texto
-    campo.setText(VALOR_INICIAL)
-    campo.setFocus()
-
-
-def substituir(doc, procurar, substituir_por):
+def substituir(
+    doc,
+    procurar,
+    substituir_por
+):
 
     descriptor = doc.createReplaceDescriptor()
 
     descriptor.SearchString = procurar
     descriptor.ReplaceString = substituir_por
 
-    # Mantém a formatação existente do documento
     doc.replaceAll(descriptor)
 
 
+# =====================================================
+# IMPRESSÃO
+# =====================================================
+
 def imprimir(doc):
 
-    # Mantemos exatamente a configuração
-    # de impressão automática.
     propriedades = []
 
     prop = uno.createUnoStruct(
@@ -407,46 +495,84 @@ def imprimir(doc):
 
     propriedades.append(prop)
 
-    doc.print(tuple(propriedades))
+    doc.print(
+        tuple(propriedades)
+    )
 
 
-class BotaoListener(
+# =====================================================
+# LISTENER DOS BOTÕES
+# =====================================================
+
+class ActionListener(
     unohelper.Base,
     XActionListener
 ):
 
     def __init__(self, callback):
+
         self.callback = callback
 
-    def actionPerformed(self, event):
-        self.callback(event)
+    def actionPerformed(
+        self,
+        event
+    ):
 
-    def disposing(self, event):
+        self.callback()
+
+    def disposing(
+        self,
+        event
+    ):
+
         pass
 
 
-class TecladoListener(
+# =====================================================
+# LISTENER DO TECLADO
+# =====================================================
+
+class KeyListener(
     unohelper.Base,
     XKeyListener
 ):
 
     def __init__(self, callback):
+
         self.callback = callback
 
-    def keyPressed(self, event):
+    def keyPressed(
+        self,
+        event
+    ):
 
-        # Enter
         if event.KeyCode == 1280:
-            self.callback(event)
 
-    def keyReleased(self, event):
+            self.callback()
+
+    def keyReleased(
+        self,
+        event
+    ):
+
         pass
 
-    def disposing(self, event):
+    def disposing(
+        self,
+        event
+    ):
+
         pass
 
 
-def mostrar_mensagem(ctx, texto):
+# =====================================================
+# MENSAGEM
+# =====================================================
+
+def mostrar_mensagem(
+    ctx,
+    texto
+):
 
     smgr = ctx.ServiceManager
 
@@ -460,13 +586,17 @@ def mostrar_mensagem(ctx, texto):
     parent = None
 
     if doc:
+
         try:
+
             parent = (
                 doc.CurrentController
                 .Frame
                 .ContainerWindow
             )
+
         except Exception:
+
             pass
 
 
@@ -474,7 +604,6 @@ def mostrar_mensagem(ctx, texto):
         "com.sun.star.awt.Toolkit",
         ctx
     )
-
 
     box = toolkit.createMessageBox(
         parent,
