@@ -1,30 +1,59 @@
-Analise a imagem e extraia exclusivamente os dados da lista de cargas.
+Receba duas listas de dados: uma lista de cargas e uma lista de boxes.
 
 Retorne SOMENTE um JSON válido, sem Markdown, sem explicações e sem texto adicional.
 
-O formato obrigatório é:
+As listas serão fornecidas neste formato:
 
-[ { "box": "string", "carga": "string", "cxs": "" },
-{ "box": "string", "carga": "string", "cxs": "" },
-{ "box": "string", "carga": "string", "cxs": "" } ]
+1234567
+1236518
+1726637
+1625534
 
-Regras:
+Logo após a lista de cargas, será fornecida a lista de boxes, seguindo o mesmo padrão:
 
-- Cada carga encontrada na imagem deve gerar um objeto.
+2
+4
+9
+9
+
+O formato obrigatório da resposta é:
+
+[
+  { "box": "02", "carga": "1234567", "cxs": "" },
+  { "box": "04", "carga": "1236518", "cxs": "" },
+  { "box": "09", "carga": "1726637", "cxs": "" },
+  { "box": "09", "carga": "1625534", "cxs": "" }
+]
+
+Regras obrigatórias:
+
+- Cada carga deve gerar exatamente um objeto JSON.
 - Cada objeto JSON deve ocupar uma única linha.
 - Não quebre um objeto em várias linhas.
-- "carga" corresponde ao número da carga.
-- "box" corresponde ao dígito que aparece sozinho imediatamente após a carga.
-- O BOX é sempre um dígito isolado após o número da carga.
-- "cxs" deve ser SEMPRE uma string vazia: "".
-- O campo "cxs" não precisa ser procurado na imagem, pois essa informação não aparece nela.
-- Preserve exatamente os valores encontrados na imagem.
-- Preserve zeros à esquerda quando existirem.
-- Todos os valores de "box" e "carga" devem ser retornados como strings.
-- Não faça cálculos ou correções nos valores.
+- O campo ""carga"" corresponde ao número da carga informado na lista de cargas.
+- O campo ""box"" corresponde ao número do box informado na lista de boxes.
+- Cada carga deve ser associada ao box que ocupa a mesma posição nas respectivas listas. O primeiro box pertence à primeira carga, o segundo box pertence à segunda carga e assim sucessivamente.
+- É obrigatório adicionar um zero à esquerda em todos os números de box menores que 10. Exemplos: ""01"", ""02"", ""03"", ""04"", ""09"".
+- Boxes com dois ou mais dígitos devem ser preservados sem alterações. Exemplos: ""10"", ""12"", ""25"".
+- O campo ""box"" deve ser sempre uma string, com o zero à esquerda quando necessário.
+- O campo ""carga"" deve ser sempre uma string.
+- O campo ""cxs"" deve ser SEMPRE uma string vazia: """".
+- Preserve exatamente os números das cargas fornecidos, incluindo eventuais zeros à esquerda.
+- Não faça cálculos ou correções nos números das cargas.
 - Não altere, complete ou invente informações.
-- Se a carga ou o BOX estiver ilegível, use "" nesse campo.
-- Mantenha a ordem das cargas conforme aparecem na imagem.
-- Não inclua informações que não façam parte da lista de cargas.
-- Antes de responder, confira cada linha para evitar associar uma carga ao BOX errado.
-- A resposta final deve ser exclusivamente o array JSON.
+- Não reordene as listas nem os objetos.
+- Mantenha a ordem original das cargas na resposta.
+- Se houver quantidades diferentes de cargas e boxes, não invente valores nem associe boxes incorretamente. Retorne apenas os objetos cujas cargas e boxes possam ser associados com segurança, respeitando a ordem das listas.
+- Antes de responder, confira cada objeto para garantir que a carga esteja associada ao box correto.
+- Não inclua informações que não façam parte dos objetos solicitados.
+- A resposta final deve ser exclusivamente o array JSON válido.
+
+Segue a lista de cargas:
+```cargas
+cole_aqui
+```
+
+Segue a lista de boxes:
+```boxes
+cole_aqui
+```
