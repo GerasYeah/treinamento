@@ -1,259 +1,320 @@
+
+# -*- coding: utf-8 -*-
+
 import uno
 import json
+import os
 
 
-def main():
-    # Obtém o contexto atual do LibreOffice
+def mostrar_mensagem(doc, titulo, mensagem, erro=False):
+    """Exibe uma mensagem na tela do LibreOffice."""
+
     ctx = uno.getComponentContext()
     smgr = ctx.ServiceManager
 
-    # Obtém o Desktop do LibreOffice
-    desktop = smgr.createInstanceWithContext(
-        "com.sun.star.frame.Desktop",
-        ctx
+    toolkit = smgr.createInstanceWithContext(
+        "com.sun.star.awt.Toolkit", ctx
     )
 
-    # Documento Writer atualmente aberto
-    doc = desktop.getCurrentComponent()
+    parent = doc.CurrentController.Frame.ContainerWindow
 
-    if not doc:
-        mostrar_mensagem("Nenhum documento está aberto.")
-        return
-
-    # Abre o seletor para escolher o arquivo JSON
-    json_path = selecionar_arquivo(ctx)
-
-    if not json_path:
-        return
-
-    # Carrega o JSON
-    try:
-        with open(json_path, "r", encoding="utf-8") as arquivo:
-            dados = json.load(arquivo)
-
-    except Exception as e:
-        mostrar_mensagem(
-            "Erro ao abrir o JSON:\n\n" + str(e)
-        )
-        return
-
-    # O JSON precisa ser uma lista
-    if not isinstance(dados, list):
-        mostrar_mensagem(
-            "O JSON precisa ser uma lista."
-        )
-        return
-
-    # Prefixos usados no documento.
-    # Guardamos em variáveis para não repetir os textos.
-    prefixo_box = "BOX: "
-    prefixo_volumes = "VOLUMES: "
-
-    # Essas variáveis guardarão exatamente o que foi
-    # inserido na última substituição.
-    box_anterior = None
-    carga_anterior = None
-    cxs_anterior = None
-
-    # Indica se estamos processando o primeiro item
-    primeira_carga = True
-
-    for item in dados:
-
-        # Ignora itens que não possuem os campos necessários
-        if "box" not in item:
-            continue
-
-        if "carga" not in item:
-            continue
-
-        if "cxs" not in item:
-            continue
-
-        # Tudo é convertido para string para preservar
-        # valores como "01", "05", etc.
-        box = str(item["box"])
-        carga = str(item["carga"])
-        cxs = str(item["cxs"])
-
-        # Montamos os textos completos que serão inseridos.
-        # Exemplo:
-        # "BOX: " + "01" = "BOX: 01"
-        # "VOLUMES: " + "05" = "VOLUMES: 05"
-        box_atual = prefixo_box + box
-        cxs_atual = prefixo_volumes + cxs
-
-        if primeira_carga:
-
-            # Na primeira carga ainda existem os placeholders.
-            #
-            # Procuramos o texto completo "BOX: {XX}"
-            # e não apenas "{XX}".
-            substituir(
-                doc,
-                prefixo_box + "{XX}",
-                box_atual
-            )
-
-            # A carga continua usando seu placeholder normal.
-            substituir(
-                doc,
-                "{CARGA}",
-                carga
-            )
-
-            # Da mesma forma, procuramos "VOLUMES: {XX}"
-            # e não apenas "{XX}".
-            substituir(
-                doc,
-                prefixo_volumes + "{XX}",
-                cxs_atual
-            )
-
-            # A partir daqui, já não é mais a primeira carga.
-            primeira_carga = False
-
-        else:
-
-            # Nas próximas cargas, substituímos exatamente
-            # o texto que foi inserido anteriormente.
-            #
-            # Exemplo:
-            # "BOX: 01" -> "BOX: 02"
-            substituir(
-                doc,
-                box_anterior,
-                box_atual
-            )
-
-            # A carga é substituída pelo valor anterior completo.
-            #
-            # Exemplo:
-            # "1234567" -> "1234568"
-            substituir(
-                doc,
-                carga_anterior,
-                carga
-            )
-
-            # Para volumes, usamos o texto completo.
-            #
-            # Exemplo:
-            # "VOLUMES: 05" -> "VOLUMES: 01"
-            substituir(
-                doc,
-                cxs_anterior,
-                cxs_atual
-            )
-
-        # Imprime o documento com os valores atuais
-        imprimir(doc)
-
-        # Guardamos os valores que acabamos de inserir.
-        # Eles serão usados como alvo na próxima substituição.
-        box_anterior = box_atual
-        carga_anterior = carga
-        cxs_anterior = cxs_atual
-
-    mostrar_mensagem(
-        "Impressão concluída.\n\n"
-        "Total de itens: " + str(len(dados))
+    tipo = uno.getConstantByName(
+        "com.sun.star.awt.MessageBoxType.ERRORBOX"
+        if erro else
+        "com.sun.star.awt.MessageBoxType.INFOBOX"
     )
+
+    botoes = uno.getConstantByName(
+        "com.sun.star.awt.MessageBoxButtons.BUTTONS_OK"
+    )
+
+    caixa = toolkit.createMessageBox(
+        parent, tipo, botoes, titulo, mensagem
+    )
+
+    caixa.execute()
+
+
+def substituir_texto(doc, texto_antigo, texto_novo):
+    """
+    Substitui todas as ocorrências do texto informado
+    no documento Writer atualmente aberto.
+    """
+
+    # Cria um descritor de substituição do Writer.
+    descritor = doc.createReplaceDescriptor()
+
+    # Define o texto que será procurado.
+    descritor.SearchString = texto_antigo
+
+    # Define o texto que será inserido.
+    descritor.ReplaceString = texto_novo
+
+    # Evita diferenciar maiúsculas de minúsculas.
+    descritor.SearchCaseSensitive = True
+
+    # Executa a substituição no documento.
+    doc.replaceAll(descritor)
+
+
+def imprimir_documento(doc):
+    """
+    Envia o documento atual para a impressora padrão.
+    Aguarda a conclusão do trabalho de impressão.
+    """
+
+    propriedades = []
+
+    # Cria a propriedade Wait, utilizada para aguardar
+    # a conclusão da impressão antes de continuar.
+    wait = uno.createUnoStruct(
+        "com.sun.star.beans.PropertyValue"
+    )
+    wait.Name = "Wait"
+    wait.Value = True
+
+    propriedades.append(wait)
+
+    # Envia o documento para impressão.
+    doc.print_(tuple(propriedades))
 
 
 def selecionar_arquivo(ctx):
-    smgr = ctx.ServiceManager
+    """
+    Abre a janela de seleção de arquivo.
+    Aceita arquivos JSON e TXT.
+    Retorna o caminho local ou None se cancelar.
+    """
 
-    # Cria o seletor de arquivos do LibreOffice
-    file_picker = smgr.createInstanceWithContext(
-        "com.sun.star.ui.dialogs.FilePicker",
-        ctx
+    picker = ctx.ServiceManager.createInstanceWithContext(
+        "com.sun.star.ui.dialogs.FilePicker", ctx
     )
 
-    file_picker.setTitle("Selecione o arquivo JSON")
+    # Inicializa a janela no modo de abertura de arquivo.
+    picker.initialize((
+        uno.getConstantByName(
+            "com.sun.star.ui.dialogs.TemplateDescription.FILEOPEN_SIMPLE"
+        ),
+    ))
 
-    # Mostra somente arquivos JSON
-    file_picker.appendFilter(
-        "Arquivos JSON",
-        "*.json"
-    )
+    # Adiciona os filtros disponíveis.
+    picker.appendFilter("Arquivos JSON", "*.json")
+    picker.appendFilter("Arquivos de texto", "*.txt")
 
-    file_picker.setMultiSelectionMode(False)
+    picker.setCurrentFilter("Arquivos JSON")
 
-    resultado = file_picker.execute()
-
-    # 1 = usuário confirmou a seleção
-    if resultado != 1:
+    # Abre a janela e verifica se o usuário confirmou.
+    if picker.execute() != 1:
         return None
 
-    arquivos = file_picker.getFiles()
-
-    if not arquivos:
-        return None
-
-    # Converte a URL do LibreOffice para um caminho
-    # normal do Windows.
-    return uno.fileUrlToSystemPath(arquivos[0])
+    # Converte a URL retornada pelo LibreOffice
+    # para um caminho de arquivo do sistema operacional.
+    return uno.fileUrlToSystemPath(picker.getFiles()[0])
 
 
-def substituir(doc, procurar, substituir_por):
-    # Cria um descritor de substituição do Writer
-    descriptor = doc.createReplaceDescriptor()
+def ImprimirDocumentos(*args):
+    """
+    Macro principal.
 
-    descriptor.SearchString = procurar
-    descriptor.ReplaceString = substituir_por
+    1. Seleciona o arquivo JSON/TXT.
+    2. Lê e valida o array.
+    3. Ignora objetos com cxs inválido ou proibido.
+    4. Substitui os marcadores sequencialmente.
+    5. Imprime cada objeto válido.
+    6. Restaura os marcadores originais ao final.
+    """
 
-    # Faz a substituição mantendo a formatação do documento.
-    doc.replaceAll(descriptor)
-
-
-def imprimir(doc):
-    # Mantemos a configuração de impressão automática
-    # que já estava funcionando corretamente.
-    propriedades = []
-
-    prop = uno.createUnoStruct(
-        "com.sun.star.beans.PropertyValue"
-    )
-
-    prop.Name = "Wait"
-    prop.Value = True
-
-    propriedades.append(prop)
-
-    doc.print(tuple(propriedades))
-
-
-def mostrar_mensagem(texto):
+    # Obtém o documento atualmente aberto no LibreOffice.
     ctx = uno.getComponentContext()
-    smgr = ctx.ServiceManager
 
-    desktop = smgr.createInstanceWithContext(
-        "com.sun.star.frame.Desktop",
-        ctx
+    desktop = ctx.ServiceManager.createInstanceWithContext(
+        "com.sun.star.frame.Desktop", ctx
     )
 
     doc = desktop.getCurrentComponent()
 
-    parent = None
+    # Verifica se existe um documento Writer aberto.
+    if doc is None or not doc.supportsService(
+        "com.sun.star.text.TextDocument"
+    ):
+        return
 
-    if doc:
+    # Textos originais presentes no modelo.
+    MARCADOR_BOX = "BOX: XX"
+    MARCADOR_CARGA = "XXXXXXX"
+    MARCADOR_CXS = "VOLUMES: XX"
+
+    # Variáveis que armazenam os textos atualmente
+    # presentes no documento.
+    box_atual = MARCADOR_BOX
+    carga_atual = MARCADOR_CARGA
+    cxs_atual = MARCADOR_CXS
+
+    # Controla a restauração dos marcadores.
+    iniciou_substituicoes = False
+
+    # Quantidade de documentos efetivamente processados.
+    total_impressos = 0
+
+    try:
+        # Solicita ao usuário o arquivo de entrada.
+        caminho = selecionar_arquivo(ctx)
+
+        # Encerra se o usuário cancelar a seleção.
+        if caminho is None:
+            return
+
+        # Abre o arquivo aceitando UTF-8 com ou sem BOM.
+        with open(caminho, "r", encoding="utf-8-sig") as arquivo:
+            dados = json.load(arquivo)
+
+        # O conteúdo precisa ser um array JSON.
+        if not isinstance(dados, list):
+            raise ValueError(
+                "O arquivo JSON deve conter um array de objetos."
+            )
+
         try:
-            parent = doc.CurrentController.Frame.ContainerWindow
-        except Exception:
-            pass
+            # Percorre todos os objetos na ordem original.
+            for item in dados:
 
-    toolkit = smgr.createInstanceWithContext(
-        "com.sun.star.awt.Toolkit",
-        ctx
-    )
+                # Cada elemento precisa ser um objeto JSON.
+                if not isinstance(item, dict):
+                    continue
 
-    box = toolkit.createMessageBox(
-        parent,
-        1,
-        1,
-        "Impressão",
-        texto
-    )
+                # Obtém os valores dos campos.
+                # Converte os valores para texto e trata null.
+                box = item.get("box")
+                carga = item.get("carga")
+                cxs = item.get("cxs")
 
-    box.execute()
+                box = "" if box is None else str(box)
+                carga = "" if carga is None else str(carga)
+                cxs = "" if cxs is None else str(cxs)
+
+                # Remove espaços externos do campo cxs
+                # para realizar a validação.
+                cxs_validacao = cxs.strip()
+
+                # Ignora cxs vazio ou que não seja numérico.
+                if not cxs_validacao.isdigit():
+                    continue
+
+                # Ignora os valores expressamente proibidos.
+                if cxs_validacao in ("0", "00", "99"):
+                    continue
+
+                # A partir daqui, o objeto é válido.
+                # Marca que o documento pode precisar ser restaurado.
+                iniciou_substituicoes = True
+
+                # -------------------------------------------------
+                # SUBSTITUIÇÃO DO BOX
+                # -------------------------------------------------
+
+                # Na primeira iteração válida, procura o marcador
+                # original. Nas próximas, procura o valor anterior.
+                substituir_texto(
+                    doc,
+                    box_atual,
+                    "BOX: " + box
+                )
+
+                # Guarda o novo texto para a próxima iteração.
+                box_atual = "BOX: " + box
+
+                # -------------------------------------------------
+                # SUBSTITUIÇÃO DA CARGA
+                # -------------------------------------------------
+
+                # Procura XXXXXXX somente na primeira iteração.
+                # Depois, procura a carga da iteração anterior.
+                substituir_texto(
+                    doc,
+                    carga_atual,
+                    carga
+                )
+
+                # Atualiza a referência da carga atual.
+                carga_atual = carga
+
+                # -------------------------------------------------
+                # SUBSTITUIÇÃO DOS VOLUMES
+                # -------------------------------------------------
+
+                # Procura VOLUMES: XX somente na primeira iteração.
+                # Depois, procura o texto de volumes anterior.
+                substituir_texto(
+                    doc,
+                    cxs_atual,
+                    "VOLUMES: " + cxs
+                )
+
+                # Atualiza a referência dos volumes atuais.
+                cxs_atual = "VOLUMES: " + cxs
+
+                # -------------------------------------------------
+                # IMPRESSÃO
+                # -------------------------------------------------
+
+                # Imprime o documento com os valores deste objeto.
+                imprimir_documento(doc)
+
+                # Incrementa o contador após a impressão.
+                total_impressos += 1
+
+        finally:
+            # -----------------------------------------------------
+            # RESTAURAÇÃO DOS MARCADORES ORIGINAIS
+            # -----------------------------------------------------
+
+            # Esta etapa acontece após o processamento, inclusive
+            # se ocorrer uma exceção durante o laço.
+            #
+            # Cada busca utiliza o último valor registrado,
+            # evitando procurar os marcadores originais novamente.
+
+            if iniciou_substituicoes:
+
+                substituir_texto(
+                    doc,
+                    box_atual,
+                    MARCADOR_BOX
+                )
+
+                substituir_texto(
+                    doc,
+                    carga_atual,
+                    MARCADOR_CARGA
+                )
+
+                substituir_texto(
+                    doc,
+                    cxs_atual,
+                    MARCADOR_CXS
+                )
+
+        # Informa o resultado após a restauração.
+        if total_impressos == 0:
+            mostrar_mensagem(
+                doc,
+                "Nenhuma impressão",
+                "Nenhum objeto válido foi encontrado no arquivo."
+            )
+        else:
+            mostrar_mensagem(
+                doc,
+                "Processo concluído",
+                "Impressões realizadas: "
+                + str(total_impressos)
+                + "\n\nOs marcadores originais foram restaurados."
+            )
+
+    except Exception as e:
+        # Exibe erros de leitura, processamento ou impressão.
+        mostrar_mensagem(
+            doc,
+            "Erro na macro",
+            str(e),
+            True
+        )
