@@ -6,6 +6,7 @@ import json
 import os
 
 
+
 def mostrar_mensagem(doc, titulo, mensagem, erro=False):
     """Exibe uma mensagem na tela do LibreOffice."""
 
@@ -18,21 +19,17 @@ def mostrar_mensagem(doc, titulo, mensagem, erro=False):
 
     parent = doc.CurrentController.Frame.ContainerWindow
 
-    tipo = uno.getConstantByName(
-        "com.sun.star.awt.MessageBoxType.ERRORBOX"
-        if erro else
-        "com.sun.star.awt.MessageBoxType.INFOBOX"
-    )
-
-    botoes = uno.getConstantByName(
-        "com.sun.star.awt.MessageBoxButtons.BUTTONS_OK"
-    )
+    # Define o tipo da caixa de mensagem usando valores
+    # numéricos compatíveis com a API UNO.
+    tipo = 3 if erro else 1
+    botoes = 1
 
     caixa = toolkit.createMessageBox(
         parent, tipo, botoes, titulo, mensagem
     )
 
     caixa.execute()
+
 
 
 def substituir_texto(doc, texto_antigo, texto_novo):
