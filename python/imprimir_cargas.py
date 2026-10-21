@@ -55,15 +55,11 @@ def substituir_texto(doc, texto_antigo, texto_novo):
 
 
 def imprimir_documento(doc):
-    """
-    Envia o documento atual para a impressora padrão.
-    Aguarda a conclusão do trabalho de impressão.
-    """
+    """Envia o documento atual para a impressora padrão."""
 
     propriedades = []
 
-    # Cria a propriedade Wait, utilizada para aguardar
-    # a conclusão da impressão antes de continuar.
+    # Aguarda a conclusão do trabalho de impressão.
     wait = uno.createUnoStruct(
         "com.sun.star.beans.PropertyValue"
     )
@@ -73,7 +69,7 @@ def imprimir_documento(doc):
     propriedades.append(wait)
 
     # Envia o documento para impressão.
-    doc.print_(tuple(propriedades))
+    doc.print(tuple(propriedades))
 
 
 def selecionar_arquivo(ctx):
