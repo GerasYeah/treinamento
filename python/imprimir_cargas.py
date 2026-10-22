@@ -6,7 +6,6 @@ import json
 import os
 
 
-
 def mostrar_mensagem(doc, titulo, mensagem, erro=False):
     """Exibe uma mensagem na tela do LibreOffice."""
 
@@ -19,8 +18,7 @@ def mostrar_mensagem(doc, titulo, mensagem, erro=False):
 
     parent = doc.CurrentController.Frame.ContainerWindow
 
-    # Define o tipo da caixa de mensagem usando valores
-    # numéricos compatíveis com a API UNO.
+    # Define o tipo da caixa de mensagem usando valores numéricos.
     tipo = 3 if erro else 1
     botoes = 1
 
@@ -29,7 +27,6 @@ def mostrar_mensagem(doc, titulo, mensagem, erro=False):
     )
 
     caixa.execute()
-
 
 
 def substituir_texto(doc, texto_antigo, texto_novo):
@@ -47,7 +44,7 @@ def substituir_texto(doc, texto_antigo, texto_novo):
     # Define o texto que será inserido.
     descritor.ReplaceString = texto_novo
 
-    # Evita diferenciar maiúsculas de minúsculas.
+    # Diferencia maiúsculas de minúsculas.
     descritor.SearchCaseSensitive = True
 
     # Executa a substituição no documento.
@@ -100,8 +97,7 @@ def selecionar_arquivo(ctx):
     if picker.execute() != 1:
         return None
 
-    # Converte a URL retornada pelo LibreOffice
-    # para um caminho de arquivo do sistema operacional.
+    # Converte a URL retornada para um caminho local.
     return uno.fileUrlToSystemPath(picker.getFiles()[0])
 
 
@@ -111,10 +107,15 @@ def ImprimirDocumentos(*args):
 
     1. Seleciona o arquivo JSON/TXT.
     2. Lê e valida o array.
-    3. Ignora objetos com cxs inválido ou proibido.
-    4. Substitui os marcadores sequencialmente.
-    5. Imprime cada objeto válido.
-    6. Restaura os marcadores originais ao final.
+    3. Remove objetos com box inválido.
+    4. Ordena os objetos pelo número do box.
+    5. Ignora objetos com cxs inválido ou proibido.
+    6. Formata cxs com zero à esquerda quando necessário.
+    7. Substitui os marcadores sequencialmente.
+    8. Imprime cada objeto válido.
+    9. Soma os volumes e contabiliza cargas por box.
+    10. Exibe o resumo completo ao final.
+    11. Restaura os marcadores originais.
     """
 
     # Obtém o documento atualmente aberto no LibreOffice.
@@ -137,8 +138,7 @@ def ImprimirDocumentos(*args):
     MARCADOR_CARGA = "XXXXXXX"
     MARCADOR_CXS = "VOLUMES: XX"
 
-    # Variáveis que armazenam os textos atualmente
-    # presentes no documento.
+    # Variáveis que armazenam os textos atuais.
     box_atual = MARCADOR_BOX
     carga_atual = MARCADOR_CARGA
     cxs_atual = MARCADOR_CXS
@@ -146,8 +146,15 @@ def ImprimirDocumentos(*args):
     # Controla a restauração dos marcadores.
     iniciou_substituicoes = False
 
-    # Quantidade de documentos efetivamente processados.
+    # Quantidade de documentos efetivamente impressos.
     total_impressos = 0
+
+    # Soma dos volumes de todos os objetos impressos.
+    total_cxs = 0
+
+    # Armazena a quantidade de cargas e caixas por box.
+    # Exemplo: {2: {"cargas": 5, "caixas": 25}}
+    resumo_boxes = {}
 
     try:
         # Solicita ao usuário o arquivo de entrada.
@@ -167,29 +174,61 @@ def ImprimirDocumentos(*args):
                 "O arquivo JSON deve conter um array de objetos."
             )
 
+        # ---------------------------------------------------------
+        # VALIDAÇÃO E ORDENAÇÃO DOS BOXES
+        # ---------------------------------------------------------
+
+        dados_validos = []
+
+        # Verifica cada objeto antes de ordenar.
+        for item in dados:
+
+            # Cada elemento precisa ser um objeto JSON.
+            if not isinstance(item, dict):
+                continue
+
+            # Obtém o box e converte para texto.
+            box = item.get("box")
+            box = "" if box is None else str(box).strip()
+
+            # Ignora boxes vazios ou não numéricos.
+            if not box.isdigit():
+                continue
+
+            # Converte o box para número inteiro.
+            box_numero = int(box)
+
+            # Ignora o box zero, incluindo "00", "000" etc.
+            if box_numero <= 0:
+                continue
+
+            # Guarda o objeto e seu valor numérico para ordenar.
+            dados_validos.append((box_numero, item))
+
+        # Ordena os objetos pelo número do box, em ordem crescente.
+        dados_validos.sort(key=lambda elemento: elemento[0])
+
+        # Recupera os objetos na ordem correta.
+        dados = [elemento[1] for elemento in dados_validos]
+
         try:
-            # Percorre todos os objetos na ordem original.
+            # Percorre os objetos na ordem crescente dos boxes.
             for item in dados:
 
-                # Cada elemento precisa ser um objeto JSON.
-                if not isinstance(item, dict):
-                    continue
-
                 # Obtém os valores dos campos.
-                # Converte os valores para texto e trata null.
                 box = item.get("box")
                 carga = item.get("carga")
                 cxs = item.get("cxs")
 
-                box = "" if box is None else str(box)
+                # Converte os valores para texto e trata null.
+                box = "" if box is None else str(box).strip()
                 carga = "" if carga is None else str(carga)
                 cxs = "" if cxs is None else str(cxs)
 
-                # Remove espaços externos do campo cxs
-                # para realizar a validação.
+                # Remove espaços externos para validação.
                 cxs_validacao = cxs.strip()
 
-                # Ignora cxs vazio ou que não seja numérico.
+                # Ignora cxs vazio ou não numérico.
                 if not cxs_validacao.isdigit():
                     continue
 
@@ -197,7 +236,16 @@ def ImprimirDocumentos(*args):
                 if cxs_validacao in ("0", "00", "99"):
                     continue
 
-                # A partir daqui, o objeto é válido.
+                # Converte cxs para número inteiro.
+                cxs_numero = int(cxs_validacao)
+
+                # Formata com dois dígitos quando menor que 10.
+                cxs = (
+                    "{:02d}".format(cxs_numero)
+                    if cxs_numero < 10
+                    else cxs_validacao
+                )
+
                 # Marca que o documento pode precisar ser restaurado.
                 iniciou_substituicoes = True
 
@@ -235,8 +283,8 @@ def ImprimirDocumentos(*args):
                 # SUBSTITUIÇÃO DOS VOLUMES
                 # -------------------------------------------------
 
-                # Procura VOLUMES: XX somente na primeira iteração.
-                # Depois, procura o texto de volumes anterior.
+                # Procura o marcador original na primeira iteração.
+                # Nas próximas, procura o texto anterior.
                 substituir_texto(
                     doc,
                     cxs_atual,
@@ -253,20 +301,38 @@ def ImprimirDocumentos(*args):
                 # Imprime o documento com os valores deste objeto.
                 imprimir_documento(doc)
 
-                # Incrementa o contador após a impressão.
+                # Atualiza os totais gerais.
                 total_impressos += 1
+                total_cxs += cxs_numero
+
+                # -------------------------------------------------
+                # CONTAGEM POR BOX
+                # -------------------------------------------------
+
+                # Utiliza o número inteiro como chave para agrupar
+                # boxes equivalentes, como "2" e "02".
+                box_numero = int(box)
+
+                # Inicializa o registro caso seja o primeiro
+                # objeto impresso deste box.
+                if box_numero not in resumo_boxes:
+                    resumo_boxes[box_numero] = {
+                        "cargas": 0,
+                        "caixas": 0
+                    }
+
+                # Conta uma carga impressa neste box.
+                resumo_boxes[box_numero]["cargas"] += 1
+
+                # Soma as caixas deste objeto ao box correspondente.
+                resumo_boxes[box_numero]["caixas"] += cxs_numero
 
         finally:
             # -----------------------------------------------------
             # RESTAURAÇÃO DOS MARCADORES ORIGINAIS
             # -----------------------------------------------------
 
-            # Esta etapa acontece após o processamento, inclusive
-            # se ocorrer uma exceção durante o laço.
-            #
-            # Cada busca utiliza o último valor registrado,
-            # evitando procurar os marcadores originais novamente.
-
+            # Executada após o processamento do laço.
             if iniciou_substituicoes:
 
                 substituir_texto(
@@ -287,19 +353,52 @@ def ImprimirDocumentos(*args):
                     MARCADOR_CXS
                 )
 
-        # Informa o resultado após a restauração.
+        # ---------------------------------------------------------
+        # RESUMO FINAL
+        # ---------------------------------------------------------
+
         if total_impressos == 0:
             mostrar_mensagem(
                 doc,
                 "Nenhuma impressão",
                 "Nenhum objeto válido foi encontrado no arquivo."
             )
+
         else:
+            # Monta o resumo com os boxes em ordem crescente.
+            linhas_resumo = []
+
+            for box_numero in sorted(resumo_boxes.keys()):
+
+                cargas_box = resumo_boxes[box_numero]["cargas"]
+                caixas_box = resumo_boxes[box_numero]["caixas"]
+
+                # Formata box, cargas e caixas com zero à esquerda
+                # quando os respectivos valores são menores que 10.
+                linhas_resumo.append(
+                    "BOX {:02d}: {:02d} CARGAS | {:02d} CAIXAS".format(
+                        box_numero,
+                        cargas_box,
+                        caixas_box
+                    )
+                )
+
+            # Adiciona uma linha em branco antes dos totais.
+            linhas_resumo.append("")
+
+            # Adiciona os totais gerais.
+            linhas_resumo.append(
+                "TOTAL: {:02d} CARGAS | {:02d} CAIXAS".format(
+                    total_impressos,
+                    total_cxs
+                )
+            )
+
+            # Exibe o resumo completo em uma única mensagem.
             mostrar_mensagem(
                 doc,
                 "Processo concluído",
-                "Impressões realizadas: "
-                + str(total_impressos)
+                "\n".join(linhas_resumo)
                 + "\n\nOs marcadores originais foram restaurados."
             )
 
