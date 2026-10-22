@@ -30,14 +30,14 @@ Regras obrigatórias:
 - Cada carga deve gerar exatamente um objeto JSON.
 - Cada objeto JSON deve ocupar uma única linha.
 - Não quebre um objeto em várias linhas.
-- O campo ""carga"" corresponde ao número da carga informado na lista de cargas.
-- O campo ""box"" corresponde ao número do box informado na lista de boxes.
+- O campo "carga" corresponde ao número da carga informado na lista de cargas.
+- O campo "box" corresponde ao número do box informado na lista de boxes.
 - Cada carga deve ser associada ao box que ocupa a mesma posição nas respectivas listas. O primeiro box pertence à primeira carga, o segundo box pertence à segunda carga e assim sucessivamente.
-- É obrigatório adicionar um zero à esquerda em todos os números de box menores que 10. Exemplos: ""01"", ""02"", ""03"", ""04"", ""09"".
-- Boxes com dois ou mais dígitos devem ser preservados sem alterações. Exemplos: ""10"", ""12"", ""25"".
-- O campo ""box"" deve ser sempre uma string, com o zero à esquerda quando necessário.
-- O campo ""carga"" deve ser SEMPRE uma string.
-- O campo ""cxs"" deve ser SEMPRE uma string vazia: """".
+- É obrigatório adicionar um zero à esquerda em todos os números de box menores que 10. Exemplos: "01"", "02", "03", "04", "09".
+- Boxes com dois ou mais dígitos devem ser preservados sem alterações. Exemplos: "10", "12", "25".
+- O campo "box" deve ser sempre uma string, com o zero à esquerda quando necessário.
+- O campo "carga" deve ser SEMPRE uma string.
+- O campo "cxs" deve ser SEMPRE uma string vazia: "".
 - Preserve exatamente os números das cargas fornecidos, incluindo eventuais zeros à esquerda.
 - Não faça cálculos ou correções nos números das cargas.
 - Não altere, complete ou invente informações.
