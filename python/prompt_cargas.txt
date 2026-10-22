@@ -2,7 +2,7 @@ Receba duas listas de dados: uma lista de cargas e uma lista de boxes.
 
 Retorne SOMENTE um JSON válido, sem Markdown, sem explicações e sem texto adicional.
 
-As listas serão fornecidas neste formato:
+A lista de cargas será fornecidas neste formato:
 
 1234567
 1236518
@@ -36,7 +36,7 @@ Regras obrigatórias:
 - É obrigatório adicionar um zero à esquerda em todos os números de box menores que 10. Exemplos: ""01"", ""02"", ""03"", ""04"", ""09"".
 - Boxes com dois ou mais dígitos devem ser preservados sem alterações. Exemplos: ""10"", ""12"", ""25"".
 - O campo ""box"" deve ser sempre uma string, com o zero à esquerda quando necessário.
-- O campo ""carga"" deve ser sempre uma string.
+- O campo ""carga"" deve ser SEMPRE uma string.
 - O campo ""cxs"" deve ser SEMPRE uma string vazia: """".
 - Preserve exatamente os números das cargas fornecidos, incluindo eventuais zeros à esquerda.
 - Não faça cálculos ou correções nos números das cargas.
